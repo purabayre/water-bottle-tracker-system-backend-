@@ -24,6 +24,11 @@ app.use("/api/summary", summaryRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/pdf", pdfRoutes);
 
+app.use((err, req, res, next) => {
+  console.error("Error:", err.message);
+  res.status(500).send(err.message || "Server Error");
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

@@ -2,161 +2,157 @@ const BottleEntry = require("../models/BottleEntry");
 const BottlePrice = require("../models/BottlePrice");
 const { updateMonthlySummary } = require("../services/summaryService");
 
-exports.addEntry = (req, res, next) => {
-  const { date, bottle_count } = req.body;
+exports.addEntry = async (req, res, next) => {
+  try {
+    const { date, bottle_count } = req.body;
 
-  if (!date || bottle_count === undefined) {
-    return res.status(400).json({ message: "All fields required" });
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
+
+    if (bottle_count === undefined) {
+      return res.status(400).json({ message: "Bottle Count is required" });
+    }
+
+    if (!Number.isInteger(bottle_count)) {
+      return res
+        .status(400)
+        .json({ message: "Bottle count must be whole number" });
+    }
+
+    if (bottle_count < 0) {
+      return res
+        .status(400)
+        .json({ message: "negative bottles are not allowed" });
+    }
+
+    const existing = await BottleEntry.findOne({ date });
+    if (existing) {
+      return res
+        .status(400)
+        .json({ message: "Entry already exists for today" });
+    }
+
+    const priceData = await BottlePrice.findOne().sort({
+      effective_from: -1,
+    });
+
+    const DEFAULT_PRICE = 5;
+    const price = priceData?.price ?? DEFAULT_PRICE;
+
+    const entryDate = new Date(date);
+    const month = entryDate.getMonth() + 1;
+    const year = entryDate.getFullYear();
+
+    const amount = bottle_count * price;
+
+    const newEntry = new BottleEntry({
+      date,
+      bottle_count,
+      price_per_bottle: price,
+      amount,
+      month,
+      year,
+    });
+
+    const saved = await newEntry.save();
+
+    await updateMonthlySummary(month, year);
+
+    return res.json({
+      message: "Entry added",
+      data: saved,
+    });
+  } catch (err) {
+    return res.status(500).send("server error");
   }
+};
 
-  if (!Number.isInteger(bottle_count)) {
-    return res
-      .status(400)
-      .json({ message: "Bottle count must be whole number" });
+exports.getMonthlyEntries = async (req, res, next) => {
+  try {
+    const { month, year } = req.query;
+
+    const entries = await BottleEntry.find({
+      month: Number(month),
+      year: Number(year),
+    }).sort({ date: 1 });
+
+    let total_bottles = 0;
+    let total_amount = 0;
+
+    entries.forEach((e) => {
+      total_bottles += e.bottle_count;
+      total_amount += e.amount;
+    });
+
+    return res.json({
+      entries,
+      summary: {
+        total_bottles,
+        total_amount,
+        delivery_days: entries.length,
+      },
+    });
+  } catch (err) {
+    return res.status(500).send("server error");
   }
+};
 
-  BottleEntry.findOne({ date: date })
-    .then((existing) => {
-      if (existing) {
-        return res
-          .status(400)
-          .json({ message: "Entry already exists for this date" });
-      }
+exports.updateEntry = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { bottle_count } = req.body;
 
-      return BottlePrice.findOne().sort({ effective_from: -1 });
-    })
-    .then((priceData) => {
-      if (!priceData) {
-        return res.status(400).json({ message: "Set price first" });
-      }
+    if (!Number.isInteger(bottle_count)) {
+      return res
+        .status(400)
+        .json({ message: "Bottle count must be whole number" });
+    }
 
-      const price = priceData.price;
+    const entry = await BottleEntry.findById(id);
 
-      const entryDate = new Date(date);
-      const month = entryDate.getMonth() + 1;
-      const year = entryDate.getFullYear();
+    if (!entry) {
+      return res.status(404).json({ message: "Entry not found" });
+    }
 
-      const amount = bottle_count * price;
+    const newAmount = bottle_count * entry.price_per_bottle;
 
-      const newEntry = new BottleEntry({
-        date,
+    const updated = await BottleEntry.findByIdAndUpdate(
+      id,
+      {
         bottle_count,
-        price_per_bottle: price,
-        amount,
-        month,
-        year,
-      });
+        amount: newAmount,
+      },
+      { new: true },
+    );
 
-      return newEntry.save();
-    })
-    .then((saved) => {
-      return updateMonthlySummary(saved.month, saved.year).then(() => {
-        res.json({
-          message: "Entry added",
-          data: saved,
-        });
-      });
-    })
-    .catch((err) => {
-      res.status(500).json({ error: err.message });
+    await updateMonthlySummary(updated.month, updated.year);
+
+    return res.json({
+      message: "Entry updated",
+      data: updated,
     });
-};
-
-exports.getMonthlyEntries = (req, res, next) => {
-  const { month, year } = req.query;
-
-  BottleEntry.find({ month: Number(month), year: Number(year) })
-    .sort({ date: 1 })
-    .then((entries) => {
-      let total_bottles = 0;
-      let total_amount = 0;
-
-      entries.forEach((e) => {
-        total_bottles += e.bottle_count;
-        total_amount += e.amount;
-      });
-
-      res.json({
-        entries,
-        summary: {
-          total_bottles,
-          total_amount,
-          delivery_days: entries.length,
-        },
-      });
-    })
-    .catch((err) => {
-      res.status(500).json({ error: err.message });
-    });
-};
-
-exports.updateEntry = (req, res, next) => {
-  const { id } = req.params;
-  const { bottle_count } = req.body;
-
-  if (!Number.isInteger(bottle_count)) {
-    return res
-      .status(400)
-      .json({ message: "Bottle count must be whole number" });
+  } catch (err) {
+    return res.status(500).send("server error");
   }
-
-  BottleEntry.findById(id)
-    .then((entry) => {
-      if (!entry) {
-        return res.status(404).json({ message: "Entry not found" });
-      }
-
-      const newAmount = bottle_count * entry.price_per_bottle;
-
-      return BottleEntry.findByIdAndUpdate(
-        id,
-        {
-          bottle_count,
-          amount: newAmount,
-        },
-        { new: true },
-      );
-    })
-    .then((updated) => {
-      if (!updated) return;
-
-      return updateMonthlySummary(updated.month, updated.year).then(() => {
-        res.json({
-          message: "Entry updated",
-          data: updated,
-        });
-      });
-    })
-    .catch((err) => {
-      res.status(500).json({ error: err.message });
-    });
 };
 
-exports.deleteEntry = (req, res, next) => {
-  const { id } = req.params;
+exports.deleteEntry = async (req, res, next) => {
+  try {
+    const { id } = req.params;
 
-  let deletedEntry = null;
+    const entry = await BottleEntry.findById(id);
 
-  BottleEntry.findById(id)
-    .then((entry) => {
-      if (!entry) {
-        return res.status(404).json({ message: "Entry not found" });
-      }
+    if (!entry) {
+      return res.status(404).json({ message: "Entry not found" });
+    }
 
-      deletedEntry = entry;
+    await BottleEntry.findByIdAndDelete(id);
 
-      return BottleEntry.findByIdAndDelete(id);
-    })
-    .then(() => {
-      if (!deletedEntry) return;
+    await updateMonthlySummary(entry.month, entry.year);
 
-      return updateMonthlySummary(deletedEntry.month, deletedEntry.year).then(
-        () => {
-          res.json({ message: "Entry deleted successfully" });
-        },
-      );
-    })
-    .catch((err) => {
-      res.status(500).json({ error: err.message });
-    });
+    return res.json({ message: "Entry deleted successfully" });
+  } catch (err) {
+    return res.status(500).send("server error");
+  }
 };

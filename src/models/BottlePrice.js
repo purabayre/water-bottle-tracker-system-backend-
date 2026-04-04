@@ -4,7 +4,7 @@ const priceSchema = new mongoose.Schema(
   {
     price: {
       type: Number,
-      required: true,
+      default: 5,
     },
     effective_from: {
       type: Date,
