@@ -10,6 +10,11 @@ const priceSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    status: {
+      type: String,
+      enum: ["ACTIVE", "ARCHIVED"],
+      default: "ACTIVE",
+    },
   },
   { timestamps: true },
 );
