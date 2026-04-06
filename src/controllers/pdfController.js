@@ -62,7 +62,7 @@ exports.generateMonthlyPDF = async (req, res, next) => {
     doc.font("Helvetica");
     doc.text(`Total Bottles: ${summary.total_bottles || 0}`);
     doc.text(`Delivery Days: ${summary.delivery_days || 0}`);
-    doc.text(`Total Amount: ₹${summary.total_amount || 0}`);
+    doc.text(`Total Amount: ${summary.total_amount || 0}`);
     doc.moveDown(1);
 
     const tableTop = doc.y;
