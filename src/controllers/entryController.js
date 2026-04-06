@@ -20,7 +20,7 @@ exports.addEntry = async (req, res, next) => {
         .json({ message: "Bottle count must be whole number" });
     }
 
-    if (bottle_count < 0) {
+    if (bottle_count <= 0) {
       return res
         .status(400)
         .json({ message: "negative bottles are not allowed" });

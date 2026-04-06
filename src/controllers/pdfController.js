@@ -101,7 +101,6 @@ exports.generateMonthlyPDF = async (req, res, next) => {
 
       totalBottles += e.bottle_count || 0;
       totalAmount += e.amount || 0;
-
       y += 20;
 
       if (y > 750) {

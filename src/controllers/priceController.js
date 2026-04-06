@@ -10,10 +10,8 @@ exports.setPrice = async (req, res, next) => {
         .json({ message: "Price must be a positive number" });
     }
 
-    // 1. Archive all previous prices
     await BottlePrice.updateMany({}, { status: "ARCHIVED" });
 
-    // 2. Add new active price
     const newPrice = new BottlePrice({
       price,
       effective_from: new Date(),

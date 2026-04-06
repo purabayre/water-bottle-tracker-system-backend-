@@ -15,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res, next) => {
-  res.send("running");
+  res.send("server is running ");
 });
 
 app.use("/api/entries", entryRoutes);
