@@ -61,7 +61,8 @@ exports.exportMonthlyReport = async (req, res, next) => {
     sheet.addRow(["Total Amount", summaryData.total_amount || 0]);
     sheet.addRow([]);
 
-    sheet.addRow(["Date", "Bottles", "Price", "Amount"]);
+    const headerRow = sheet.addRow(["Date", "Bottles", "Price", "Amount"]);
+    headerRow.font = { bold: true };
 
     entries.forEach((e) => {
       if (!e?.date) return;
@@ -74,9 +75,25 @@ exports.exportMonthlyReport = async (req, res, next) => {
       ]);
     });
 
+    sheet.addRow([]);
+
+    const totalRow = sheet.addRow([
+      "TOTAL",
+      summaryData.total_bottles || 0,
+      "-",
+      summaryData.total_amount || 0,
+    ]);
+
+    totalRow.font = { bold: true };
+
+    totalRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+      };
+    });
+
     sheet.columns.forEach((col) => {
-      const header = col.header || "";
-      col.width = Math.max(12, String(header).length);
+      col.width = 15;
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -92,6 +109,7 @@ exports.exportMonthlyReport = async (req, res, next) => {
 
     res.send(buffer);
   } catch (err) {
+    console.log(err);
     res.status(500).send("server error");
   }
 };
