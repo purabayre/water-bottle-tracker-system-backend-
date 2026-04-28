@@ -10,6 +10,12 @@ exports.addEntry = async (req, res, next) => {
       return res.status(400).json({ message: "Date is required" });
     }
 
+    const entryDate = new Date(date);
+
+    if (isNaN(entryDate)) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+
     if (bottle_count === undefined) {
       return res.status(400).json({ message: "Bottle Count is required" });
     }
@@ -40,7 +46,6 @@ exports.addEntry = async (req, res, next) => {
     const DEFAULT_PRICE = 5;
     const price = priceData?.price ?? DEFAULT_PRICE;
 
-    const entryDate = new Date(date);
     const month = entryDate.getMonth() + 1;
     const year = entryDate.getFullYear();
 
@@ -59,23 +64,62 @@ exports.addEntry = async (req, res, next) => {
 
     await updateMonthlySummary(month, year);
 
+    const formatted = {
+      ...saved.toObject(),
+      id: saved._id,
+    };
+
+    delete formatted._id;
+    delete formatted.__v;
+    delete formatted.createdAt;
+    delete formatted.updatedAt;
+
     return res.json({
       message: "Entry added",
-      data: saved,
+      data: formatted,
     });
   } catch (err) {
-    return res.status(500).send("server error");
+    console.error(err);
+    return res.status(500).json({ message: "server error" });
   }
 };
-
 exports.getMonthlyEntries = async (req, res, next) => {
   try {
     const { month, year } = req.query;
 
+    if (!month || !year) {
+      return res.status(400).json({
+        message: "Month and year are required",
+      });
+    }
+
+    const monthNum = Number(month);
+    const yearNum = Number(year);
+
+    if (!Number.isInteger(monthNum) || !Number.isInteger(yearNum)) {
+      return res.status(400).json({
+        message: "Month and year must be valid integers",
+      });
+    }
+
+    if (monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        message: "Month must be between 1 and 12",
+      });
+    }
+
+    if (yearNum < 2000 || yearNum > 2100) {
+      return res.status(400).json({
+        message: "Year must be between 2000 and 2100",
+      });
+    }
     const entries = await BottleEntry.find({
-      month: Number(month),
-      year: Number(year),
-    }).sort({ date: 1 });
+      month: monthNum,
+      year: yearNum,
+    })
+      .sort({ date: 1 })
+      .select("-__v -createdAt -updatedAt")
+      .lean();
 
     let total_bottles = 0;
     let total_amount = 0;
@@ -85,28 +129,44 @@ exports.getMonthlyEntries = async (req, res, next) => {
       total_amount += e.amount;
     });
 
+    const formattedEntries = entries.map((e) => ({
+      ...e,
+      id: e._id,
+      _id: undefined,
+    }));
+
     return res.json({
-      entries,
       summary: {
         total_bottles,
         total_amount,
-        delivery_days: entries.length,
+        delivery_days: formattedEntries.length,
       },
+      entries: formattedEntries,
     });
   } catch (err) {
-    return res.status(500).send("server error");
+    console.error(err);
+    return res.status(500).json({ message: "server error" });
   }
 };
-
 exports.updateEntry = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { bottle_count } = req.body;
 
+    if (bottle_count === undefined) {
+      return res.status(400).json({ message: "Bottle Count is required" });
+    }
+
     if (!Number.isInteger(bottle_count)) {
       return res
         .status(400)
         .json({ message: "Bottle count must be whole number" });
+    }
+
+    if (bottle_count <= 0) {
+      return res
+        .status(400)
+        .json({ message: "negative bottles are not allowed" });
     }
 
     const entry = await BottleEntry.findById(id);
@@ -128,12 +188,23 @@ exports.updateEntry = async (req, res, next) => {
 
     await updateMonthlySummary(updated.month, updated.year);
 
+    const formatted = {
+      ...updated.toObject(),
+      id: updated._id,
+    };
+
+    delete formatted._id;
+    delete formatted.__v;
+    delete formatted.createdAt;
+    delete formatted.updatedAt;
+
     return res.json({
       message: "Entry updated",
-      data: updated,
+      data: formatted,
     });
   } catch (err) {
-    return res.status(500).send("server error");
+    console.error(err);
+    return res.status(500).json({ message: "server error" });
   }
 };
 
