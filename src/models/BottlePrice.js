@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 
-const priceSchema = new mongoose.Schema(
+const Schema = mongoose.Schema;
+
+const priceSchema = new Schema(
   {
     price: {
       type: Number,

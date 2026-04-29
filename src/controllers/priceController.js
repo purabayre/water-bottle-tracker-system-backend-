@@ -31,7 +31,13 @@ exports.setPrice = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json(saved);
+    res.status(201).json({
+      updatedPrice: {
+        price: saved.price,
+        effective_from: saved.effective_from,
+        status: saved.status,
+      },
+    });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
@@ -58,7 +64,15 @@ exports.getCurrentPrice = async (req, res, next) => {
       });
     }
 
-    res.json(price);
+    const { _id, createdAt, updatedAt, __v, ...cleanPrice } = price.toObject();
+
+    res.json({
+      currentPrice: {
+        price: cleanPrice.price,
+        effective_from: cleanPrice.effective_from,
+        status: cleanPrice.status,
+      },
+    });
   } catch (err) {
     res.status(500).send("server error");
   }
@@ -82,10 +96,14 @@ exports.getPriceHistory = async (req, res, next) => {
     }
 
     const result = [
-      ...prices.map((p) => ({
-        ...p.toObject(),
-        status: p.status ?? "ARCHIVED",
-      })),
+      ...prices.map((p) => {
+        const { _id, createdAt, updatedAt, __v, ...clean } = p.toObject();
+
+        return {
+          ...clean,
+          status: clean.status ?? "ARCHIVED",
+        };
+      }),
       defaultPriceRow,
     ];
 

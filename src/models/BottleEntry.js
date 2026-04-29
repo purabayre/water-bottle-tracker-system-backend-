@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 
-const bottleEntrySchema = new mongoose.Schema(
+const Schema = mongoose.Schema;
+
+const bottleEntrySchema = new Schema(
   {
     date: {
       type: String,

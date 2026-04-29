@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const summarySchema = new mongoose.Schema(
+const summarySchema = new Schema(
   {
     month: Number,
     year: Number,

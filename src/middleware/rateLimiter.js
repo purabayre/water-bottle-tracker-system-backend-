@@ -1,6 +1,6 @@
 const rateLimit = require("express-rate-limit");
 
-const generalLimiter = rateLimit({
+exports.generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 100,
   message: {
@@ -10,15 +10,10 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const heavyLimiter = rateLimit({
+exports.heavyLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 5,
   message: {
     message: "Too many export requests. Please wait.",
   },
 });
-
-module.exports = {
-  generalLimiter,
-  heavyLimiter,
-};

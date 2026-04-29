@@ -2,7 +2,16 @@ const MonthlySummary = require("../models/MonthlySummary");
 
 exports.getMonthlySummary = async (req, res, next) => {
   try {
-    const { month, year } = req.query;
+    const month = Number(req.query.month);
+    const year = Number(req.query.year);
+
+    if (!Number.isInteger(month) || month < 1 || month > 12) {
+      return res.status(400).json({ message: "Invalid month" });
+    }
+
+    if (!Number.isInteger(year) || year < 2000) {
+      return res.status(400).json({ message: "Invalid year" });
+    }
 
     const summary = await MonthlySummary.findOne({
       month: Number(month),
@@ -17,7 +26,15 @@ exports.getMonthlySummary = async (req, res, next) => {
       });
     }
 
-    res.json(summary);
+    res.json({
+      summary: {
+        month: summary.month,
+        year: summary.year,
+        total_bottles: summary.total_bottles,
+        total_amount: summary.total_amount,
+        delivery_days: summary.delivery_days,
+      },
+    });
   } catch (err) {
     res.status(500).send("server error");
   }
