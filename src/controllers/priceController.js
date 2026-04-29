@@ -1,16 +1,24 @@
+const mongoose = require("mongoose");
 const BottlePrice = require("../models/BottlePrice");
 
 exports.setPrice = async (req, res, next) => {
-  try {
-    const { price } = req.body;
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    if (price !== undefined && price <= 0) {
-      return res
-        .status(400)
-        .json({ message: "Price must be a positive number" });
+  try {
+    let { price } = req.body;
+
+    price = Number(price);
+    if (!price || isNaN(price) || price <= 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Price must be a valid number" });
     }
 
-    await BottlePrice.updateMany({}, { status: "ARCHIVED" });
+    await BottlePrice.updateMany(
+      { status: "ACTIVE" },
+      { status: "ARCHIVED" },
+      { session },
+    );
 
     const newPrice = new BottlePrice({
       price,
@@ -18,9 +26,16 @@ exports.setPrice = async (req, res, next) => {
       status: "ACTIVE",
     });
 
-    const saved = await newPrice.save();
+    const saved = await newPrice.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
     res.status(201).json(saved);
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+
     console.log(err);
     res.status(500).send("server error");
   }
@@ -28,7 +43,13 @@ exports.setPrice = async (req, res, next) => {
 
 exports.getCurrentPrice = async (req, res, next) => {
   try {
-    const price = await BottlePrice.findOne().sort({ effective_from: -1 });
+    let price = await BottlePrice.findOne({ status: "ACTIVE" }).sort({
+      effective_from: -1,
+    });
+
+    if (!price) {
+      price = await BottlePrice.findOne().sort({ effective_from: -1 });
+    }
 
     if (!price) {
       return res.json({
@@ -42,6 +63,7 @@ exports.getCurrentPrice = async (req, res, next) => {
     res.status(500).send("server error");
   }
 };
+
 exports.getPriceHistory = async (req, res, next) => {
   try {
     const DEFAULT_PRICE = 5.0;
@@ -62,7 +84,7 @@ exports.getPriceHistory = async (req, res, next) => {
     const result = [
       ...prices.map((p) => ({
         ...p.toObject(),
-        status: p.status || "ARCHIVED",
+        status: p.status ?? "ARCHIVED",
       })),
       defaultPriceRow,
     ];

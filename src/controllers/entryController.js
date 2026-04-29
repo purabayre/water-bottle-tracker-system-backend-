@@ -2,6 +2,7 @@ const BottleEntry = require("../models/BottleEntry");
 const BottlePrice = require("../models/BottlePrice");
 const { updateMonthlySummary } = require("../services/summaryService");
 
+// ADD
 exports.addEntry = async (req, res, next) => {
   try {
     const { date, bottle_count } = req.body;
@@ -12,9 +13,11 @@ exports.addEntry = async (req, res, next) => {
 
     const entryDate = new Date(date);
 
-    if (isNaN(entryDate)) {
+    if (isNaN(entryDate.getTime())) {
       return res.status(400).json({ message: "Invalid date format" });
     }
+
+    entryDate.setUTCHours(0, 0, 0, 0);
 
     if (bottle_count === undefined) {
       return res.status(400).json({ message: "Bottle Count is required" });
@@ -46,8 +49,8 @@ exports.addEntry = async (req, res, next) => {
     const DEFAULT_PRICE = 5;
     const price = priceData?.price ?? DEFAULT_PRICE;
 
-    const month = entryDate.getMonth() + 1;
-    const year = entryDate.getFullYear();
+    const month = entryDate.getUTCMonth() + 1;
+    const year = entryDate.getUTCFullYear();
 
     const amount = bottle_count * price;
 
@@ -66,7 +69,7 @@ exports.addEntry = async (req, res, next) => {
 
     const formatted = {
       ...saved.toObject(),
-      id: saved._id,
+      id: saved._id.toString(),
     };
 
     delete formatted._id;
@@ -83,6 +86,8 @@ exports.addEntry = async (req, res, next) => {
     return res.status(500).json({ message: "server error" });
   }
 };
+
+// MONTHLY ENTRIES
 exports.getMonthlyEntries = async (req, res, next) => {
   try {
     const { month, year } = req.query;
@@ -131,8 +136,7 @@ exports.getMonthlyEntries = async (req, res, next) => {
 
     const formattedEntries = entries.map((e) => ({
       ...e,
-      id: e._id,
-      _id: undefined,
+      id: e._id.toString(),
     }));
 
     return res.json({
@@ -148,6 +152,8 @@ exports.getMonthlyEntries = async (req, res, next) => {
     return res.status(500).json({ message: "server error" });
   }
 };
+
+// UPDATE
 exports.updateEntry = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -208,6 +214,7 @@ exports.updateEntry = async (req, res, next) => {
   }
 };
 
+// DELETE
 exports.deleteEntry = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -220,10 +227,15 @@ exports.deleteEntry = async (req, res, next) => {
 
     await BottleEntry.findByIdAndDelete(id);
 
-    await updateMonthlySummary(entry.month, entry.year);
+    try {
+      await updateMonthlySummary(entry.month, entry.year);
+    } catch (summaryErr) {
+      console.error("Monthly summary update failed after delete:", summaryErr);
+    }
 
     return res.json({ message: "Entry deleted successfully" });
   } catch (err) {
-    return res.status(500).send("server error");
+    console.error(err);
+    return res.status(500).json({ message: "server error" });
   }
 };

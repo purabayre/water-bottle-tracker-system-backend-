@@ -7,10 +7,11 @@ const {
   updateEntry,
   deleteEntry,
 } = require("../controllers/entryController");
+const { generalLimiter } = require("../middleware/rateLimiter");
 
-router.post("/add", addEntry);
-router.get("/month", getMonthlyEntries);
-router.put("/update/:id", updateEntry);
-router.delete("/delete/:id", deleteEntry);
+router.post("/add", generalLimiter, addEntry);
+router.get("/month", generalLimiter, getMonthlyEntries);
+router.put("/update/:id", generalLimiter, updateEntry);
+router.delete("/delete/:id", generalLimiter, deleteEntry);
 
 module.exports = router;

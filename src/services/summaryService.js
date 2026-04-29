@@ -1,29 +1,39 @@
 const BottleEntry = require("../models/BottleEntry");
 const MonthlySummary = require("../models/MonthlySummary");
 
-exports.updateMonthlySummary = (month, year) => {
-  return BottleEntry.find({ month, year }).then((entries) => {
-    let total_bottles = 0;
-    let total_amount = 0;
+exports.updateMonthlySummary = async (month, year) => {
+  try {
+    const result = await BottleEntry.aggregate([
+      { $match: { month, year } },
+      {
+        $group: {
+          _id: null,
+          total_bottles: { $sum: { $ifNull: ["$bottle_count", 0] } },
+          total_amount: { $sum: { $ifNull: ["$amount", 0] } },
+          delivery_days: { $sum: 1 },
+        },
+      },
+    ]);
 
-    entries.forEach((e) => {
-      total_bottles += e.bottle_count;
-      total_amount += e.amount;
-    });
+    const summary = result[0] || {
+      total_bottles: 0,
+      total_amount: 0,
+      delivery_days: 0,
+    };
 
-    const delivery_days = entries.length;
-
-    return MonthlySummary.findOneAndUpdate(
+    return await MonthlySummary.findOneAndUpdate(
       { month, year },
       {
-        total_bottles,
-        total_amount,
-        delivery_days,
+        total_bottles: summary.total_bottles,
+        total_amount: summary.total_amount,
+        delivery_days: summary.delivery_days,
       },
       {
         new: true,
         upsert: true,
       },
     );
-  });
+  } catch (err) {
+    throw err;
+  }
 };
