@@ -183,7 +183,7 @@ exports.updateEntry = async (req, res, next) => {
 
     const newAmount = bottle_count * entry.price_per_bottle;
 
-    const updated = await BottleEntry.findByIdAndUpdate(
+    const updated = await BottleEntry.findOneAndUpdate(
       id,
       {
         bottle_count,
@@ -225,7 +225,7 @@ exports.deleteEntry = async (req, res, next) => {
       return res.status(404).json({ message: "Entry not found" });
     }
 
-    await BottleEntry.findByIdAndDelete(id);
+    await BottleEntry.findOneAndDelete(id);
 
     try {
       await updateMonthlySummary(entry.month, entry.year);
