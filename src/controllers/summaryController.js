@@ -20,9 +20,13 @@ exports.getMonthlySummary = async (req, res, next) => {
 
     if (!summary) {
       return res.json({
-        total_bottles: 0,
-        total_amount: 0,
-        delivery_days: 0,
+        summary: {
+          month,
+          year,
+          total_bottles: 0,
+          total_amount: 0,
+          delivery_days: 0,
+        },
       });
     }
 

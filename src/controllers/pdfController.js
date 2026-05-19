@@ -1,6 +1,5 @@
 const PDFDocument = require("pdfkit");
 const BottleEntry = require("../models/BottleEntry");
-const MonthlySummary = require("../models/MonthlySummary");
 
 // helpers (same as tea controller)
 const padRight = (text, length) => String(text ?? "").padEnd(length, " ");

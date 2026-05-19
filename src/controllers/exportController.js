@@ -13,8 +13,15 @@ exports.exportMonthlyReport = async (req, res, next) => {
     const m = Number(month);
     const y = Number(year);
 
-    const startDate = new Date(y, m - 1, 1);
-    const endDate = new Date(y, m, 1);
+    if (!Number.isInteger(m) || m < 1 || m > 12) {
+      return res
+        .status(400)
+        .json({ message: "Month must be an integer between 1 and 12" });
+    }
+
+    if (!Number.isInteger(y) || y < 2000 || y > 2100) {
+      return res.status(400).json({ message: "Year must be a valid integer" });
+    }
 
     const summary = await MonthlySummary.findOne({
       month: m,
@@ -22,7 +29,8 @@ exports.exportMonthlyReport = async (req, res, next) => {
     });
 
     let entries = await BottleEntry.find({
-      date: { $gte: startDate, $lt: endDate },
+      month: m,
+      year: y,
     }).sort({ date: 1 });
 
     if (!Array.isArray(entries)) entries = [];

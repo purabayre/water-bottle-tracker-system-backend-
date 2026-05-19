@@ -11,6 +11,7 @@ exports.setPrice = async (req, res, next) => {
     price = Number(price);
     if (!price || isNaN(price) || price <= 0) {
       await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "Price must be a valid number" });
     }
 
@@ -59,7 +60,11 @@ exports.getCurrentPrice = async (req, res, next) => {
 
     if (!price) {
       return res.json({
-        price: 5.0,
+        currentPrice: {
+          price: 5.0,
+          effective_from: null,
+          status: "DEFAULT",
+        },
         message: "Default price is being used because no price is set yet.",
       });
     }
